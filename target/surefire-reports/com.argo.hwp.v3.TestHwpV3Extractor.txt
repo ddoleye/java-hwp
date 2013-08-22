@@ -1,0 +1,11 @@
+-------------------------------------------------------------------------------
+Test set: com.argo.hwp.v3.TestHwpV3Extractor
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.105 sec <<< FAILURE!
+com.argo.hwp.v3.TestHwpV3Extractor.testObjectStreams()  Time elapsed: 0.099 sec  <<< FAILURE!
+java.io.FileNotFoundException: empty-v3.hwp (지정된 파일을 찾을 수 없습니다)
+	at java.io.FileInputStream.open(Native Method)
+	at java.io.FileInputStream.<init>(FileInputStream.java:138)
+	at com.argo.hwp.v3.HwpTextExtractorV3.extractText(HwpTextExtractorV3.java:35)
+	at com.argo.hwp.v3.TestHwpV3Extractor.extract(TestHwpV3Extractor.java:18)
+	at com.argo.hwp.v3.TestHwpV3Extractor.testObjectStreams(TestHwpV3Extractor.java:76)

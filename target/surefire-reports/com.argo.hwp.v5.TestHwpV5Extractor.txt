@@ -1,0 +1,9 @@
+-------------------------------------------------------------------------------
+Test set: com.argo.hwp.v5.TestHwpV5Extractor
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0 sec <<< FAILURE!
+com.argo.hwp.v5.TestHwpV5Extractor.testObjectStreams()  Time elapsed: 0 sec  <<< FAILURE!
+java.io.FileNotFoundException
+	at com.argo.hwp.v5.HwpTextExtractorV5.extractText(HwpTextExtractorV5.java:67)
+	at com.argo.hwp.v5.TestHwpV5Extractor.extract(TestHwpV5Extractor.java:16)
+	at com.argo.hwp.v5.TestHwpV5Extractor.testObjectStreams(TestHwpV5Extractor.java:47)
