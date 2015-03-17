@@ -11,7 +11,8 @@ import org.junit.Test;
 public class TestHwpV3Extractor {
 	private String extract(String path) throws FileNotFoundException,
 			IOException {
-		File file = new File(path);
+//		File file = new File(path);
+		File file = new File(getClass().getResource("/"+path).getFile());
 		// System.out.println(file.getAbsolutePath());
 		StringWriter writer = new StringWriter(4096);
 		HwpTextExtractorV3.extractText(file, writer);
@@ -45,8 +46,7 @@ public class TestHwpV3Extractor {
 
 	@Test
 	public void testExtractText() throws IOException, ClassNotFoundException {
-		// Assert.assertEquals("", extract("empty-v3.hwp"));
-		System.out.println(extract("4e00-62ff.hwp"));
-		System.out.println(extract("한글 특수문자표 3.0.hwp"));
+		System.out.println(extract("v3/4e00-62ff.hwp"));
+		System.out.println(extract("v3/han_special_char_3.0.hwp"));
 	}
 }
