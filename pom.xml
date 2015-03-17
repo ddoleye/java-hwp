@@ -7,7 +7,7 @@
 
 	<properties>
 		<project.source.encoding>UTF-8</project.source.encoding>
-		<project.source.version>1.6</project.source.version>
+		<project.source.version>1.7</project.source.version>
 	</properties>
 
 	<dependencies>
@@ -23,6 +23,13 @@
 			<version>1.7.5</version>
 			<scope>provided</scope>
 		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.12</version>
+		</dependency>
+
+
 	</dependencies>
 
 	<build>
