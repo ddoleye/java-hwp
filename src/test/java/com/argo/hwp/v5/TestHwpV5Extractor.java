@@ -10,8 +10,8 @@ import org.junit.Test;
 public class TestHwpV5Extractor {
 	private String extract(String path) throws FileNotFoundException,
 			IOException {
-		File file = new File(path);
-		// System.out.println(file.getAbsolutePath());
+//		File file = new File(path);
+		File file = new File(getClass().getResource("/"+path).getFile());
 		StringWriter writer = new StringWriter(4096);
 		HwpTextExtractorV5.extractText(file, writer);
 		return writer.toString();
@@ -49,8 +49,7 @@ public class TestHwpV5Extractor {
 
 	@Test
 	public void testExtractText() throws IOException, ClassNotFoundException {
-		System.out.println(extract("한국어문규정집.hwp"));
-		// System.out.println(withCode(extract("한글 특수문자표.hwp")));
-		System.out.println(extract("한글 특수문자표.hwp"));
+		System.out.println(extract("v5/han_grammar.hwp"));
+		System.out.println(extract("v5/han_special_char.hwp"));
 	}
 }
