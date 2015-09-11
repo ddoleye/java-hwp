@@ -108,9 +108,11 @@ public abstract class HwpTextExtractorV3 {
 		input.ensureSkip(blockSize);
 
 		// 압축 풀기
-		if (compressed)
+		if (compressed) {
+			log.info("본문 압축 해제");
 			input = new HwpStreamReader(new InflaterInputStream(inputStream,
 					new Inflater(true)));
+		}
 
 		// p.73 글꼴이름 건너뛰기
 		for (int ii = 0; ii < 7; ii++)
@@ -136,6 +138,8 @@ public abstract class HwpTextExtractorV3 {
 		int n_chars = input.uint16();
 		int n_lines = input.uint16();
 		short char_shape_included = input.uint8();
+
+		StringBuilder buf = new StringBuilder();
 
 		// p.77 기타 플래그부터..
 		input.ensureSkip(1 + 4 + 1 + 31);
@@ -172,6 +176,14 @@ public abstract class HwpTextExtractorV3 {
 			n_chars_read++;
 
 			switch (c) {
+			case 5: // 필드코드(덧말, 계산식, 환경정보, 누름틀)
+			{
+				long len = input.uint32(); // 정보 길이
+				input.uint16(); // 5
+				n_chars_read += 3;
+				input.ensureSkip(len);
+			}
+				break;
 			case 6: // 책갈피
 				n_chars_read += 3;
 				input.ensureSkip(6 + 34);
@@ -204,6 +216,7 @@ public abstract class HwpTextExtractorV3 {
 				break;
 
 			case 11: // 그림
+			{
 				n_chars_read += 3;
 				input.ensureSkip(6);
 				long len = input.uint32();
@@ -212,6 +225,7 @@ public abstract class HwpTextExtractorV3 {
 				// # <캡션 문단 리스트> ::= <캡션 문단>+ <빈문단>
 				while (writeParaText(input, writer))
 					;
+			}
 				break;
 			case 13: // # 글자들 끝
 				writer.write('\n');
@@ -266,6 +280,7 @@ public abstract class HwpTextExtractorV3 {
 						log.warn("매핑 문자 없음 {}", Integer.toHexString(c));
 						writer.write(unknown(c));
 					} else {
+						buf.append(s);
 						writer.write(s);
 					}
 				} else {
@@ -274,6 +289,8 @@ public abstract class HwpTextExtractorV3 {
 				}
 			}
 		}
+
+		log.debug(">>> {}", buf.toString());
 
 		return true;
 	}
