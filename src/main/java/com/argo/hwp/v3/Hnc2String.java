@@ -161,6 +161,9 @@ class Hnc2String {
 						status = 0;
 						log.debug("hnc2uni_map 매핑 읽기 종료({}) {}건", lineNumber,
 								count);
+					} else if (line.startsWith("//")) {
+						// comments로 판단
+						// log.debug("코멘트 라인 [{}]", line);
 					} else {
 						Matcher matcher = UINT32MAP.matcher(line);
 						if (matcher.find()) {
