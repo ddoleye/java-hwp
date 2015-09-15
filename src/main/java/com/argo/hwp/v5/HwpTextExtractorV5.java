@@ -28,10 +28,18 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Writer;
+import java.security.InvalidKeyException;
+import java.security.Key;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
+
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.poi.poifs.filesystem.DirectoryEntry;
 import org.apache.poi.poifs.filesystem.DirectoryNode;
@@ -95,18 +103,16 @@ public abstract class HwpTextExtractorV5 {
 			if (header == null)
 				return false;
 
-			// TODO 배포용 문서.. BodyText 가 아닌 ViewText에 Section 이 존재하고
-			// 아직까지 이걸 읽는 방법이 없다능?
-			// https://groups.google.com/forum/#!topic/libhwp/raZpuBS2BX4
-			if (header.viewtext) {
-				log.warn("배포용 문서는 해석할 수 없습니다. https://groups.google.com/forum/#!topic/libhwp/raZpuBS2BX4");
-				// return or throw exception
-				return false;
-			}
-
 			// 여기까지 왔다면 HWP 문서가 맞다고 본다
 			// 이제부터의 IOException 은 HWP 읽는 중 오류이다.
-			extractText(header, fs, writer);
+
+			// 배포용 문서.. BodyText 가 아닌 ViewText에 Section 이 존재
+			// https://groups.google.com/forum/#!msg/hwp-foss/d2KL2ypR89Q/lCTkebPcIYYJ
+			if (header.viewtext) {
+				extractViewText(header, fs, writer);
+			} else {
+				extractBodyText(header, fs, writer);
+			}
 
 			return true;
 		} finally {
@@ -175,7 +181,7 @@ public abstract class HwpTextExtractorV5 {
 	 * @return
 	 * @throws IOException
 	 */
-	private static void extractText(FileHeader header, NPOIFSFileSystem fs,
+	private static void extractBodyText(FileHeader header, NPOIFSFileSystem fs,
 			Writer writer) throws IOException {
 		DirectoryNode root = fs.getRoot();
 
@@ -193,12 +199,13 @@ public abstract class HwpTextExtractorV5 {
 
 				InputStream input = new NDocumentInputStream(
 						(DocumentEntry) entry);
-				if (header.compressed)
-					input = new InflaterInputStream(input, new Inflater(true));
-
-				HwpStreamReader sectionStream = new HwpStreamReader(input);
-
 				try {
+					if (header.compressed)
+						input = new InflaterInputStream(input, new Inflater(
+								true));
+
+					HwpStreamReader sectionStream = new HwpStreamReader(input);
+
 					extractText(sectionStream, writer);
 				} finally {
 					// 닫을 필요는 없을 것이다
@@ -212,6 +219,122 @@ public abstract class HwpTextExtractorV5 {
 				log.warn("알수없는 Entry '{}'({})", entry.getName(), entry);
 			}
 		}
+	}
+
+	/**
+	 * 텍스트 추출
+	 * 
+	 * @param writer
+	 * @param source
+	 * 
+	 * @return
+	 * @throws IOException
+	 */
+	private static void extractViewText(FileHeader header, NPOIFSFileSystem fs,
+			Writer writer) throws IOException {
+		DirectoryNode root = fs.getRoot();
+
+		// BodyText 읽기
+		Entry bodyText = root.getEntry("ViewText");
+		if (bodyText == null || !bodyText.isDirectoryEntry())
+			throw new IOException("Invalid ViewText");
+
+		Iterator<Entry> iterator = ((DirectoryEntry) bodyText).getEntries();
+		while (iterator.hasNext()) {
+			Entry entry = iterator.next();
+			if (entry.getName().startsWith("Section")
+					&& entry instanceof DocumentEntry) {
+				log.debug("extract {}", entry.getName());
+
+				InputStream input = new NDocumentInputStream(
+						(DocumentEntry) entry);
+
+				// FIXME 섹션마다 키가 있는가?
+				Key key = readKey(input);
+				try {
+					input = createDecryptStream(input, key);
+					if (header.compressed)
+						input = new InflaterInputStream(input, new Inflater(
+								true));
+
+					HwpStreamReader sectionStream = new HwpStreamReader(input);
+					extractText(sectionStream, writer);
+				} catch (InvalidKeyException e) {
+					throw new IOException(e);
+				} catch (NoSuchAlgorithmException e) {
+					throw new IOException(e);
+				} catch (NoSuchPaddingException e) {
+					throw new IOException(e);
+				} finally {
+					// 닫을 필요는 없을 것이다
+					try {
+						input.close();
+					} catch (IOException e) {
+						log.error("있을 수 없는 일?", e);
+					}
+				}
+			} else {
+				log.warn("알수없는 Entry '{}'({})", entry.getName(), entry);
+			}
+		}
+	}
+
+	// https://groups.google.com/forum/#!msg/hwp-foss/d2KL2ypR89Q/lCTkebPcIYYJ
+	private static class SRand {
+		private int random_seed;
+
+		private SRand(int seed) {
+			random_seed = seed;
+		}
+
+		private int rand() {
+			random_seed = (random_seed * 214013 + 2531011) & 0xFFFFFFFF;
+			return (random_seed >> 16) & 0x7FFF;
+		}
+	}
+
+	private static Key readKey(InputStream input) throws IOException {
+		byte[] data = new byte[260];
+
+		input.read(data, 0, 4); // TAG,
+		// HWPTAG_DISTRIBUTE_DOC_DATA 확인
+		// long recordHeader = LittleEndian.getUInt(data);
+		// log.debug("TAG:   {}", recordHeader & 0x3FF);
+		// log.debug("LEVEL: {}", (recordHeader >> 10) & 0x3FF);
+		// log.debug("SIZE:  {}", (recordHeader >> 20) & 0xFFF);
+
+		// https://groups.google.com/forum/#!msg/hwp-foss/d2KL2ypR89Q/lCTkebPcIYYJ
+
+		input.read(data, 0, 256);
+
+		SRand srand = new SRand(LittleEndian.getInt(data));
+		byte xor = 0;
+		for (int i = 0, n = 0; i < 256; i++, n--) {
+			if (n == 0) {
+				xor = (byte) (srand.rand() & 0xFF);
+				n = (int) ((srand.rand() & 0xF) + 1);
+			}
+			if (i >= 4) {
+				data[i] = (byte) ((data[i]) ^ (xor));
+			}
+		}
+
+		int offset = 4 + (data[0] & 0xF);
+		byte[] key = Arrays.copyOfRange(data, offset, offset + 16);
+
+		SecretKeySpec secretKey = new SecretKeySpec(key, "AES");
+		return secretKey;
+	}
+
+	public static InputStream createDecryptStream(InputStream input, Key key)
+			throws IOException, NoSuchAlgorithmException,
+			NoSuchPaddingException, InvalidKeyException {
+		Cipher cipher = null;
+
+		cipher = Cipher.getInstance("AES/ECB/NoPadding");
+		cipher.init(Cipher.DECRYPT_MODE, key);
+
+		return new CipherInputStream(input, cipher);
 	}
 
 	/**
