@@ -2,8 +2,8 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.argo</groupId>
-	<artifactId>hwp-utils</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<artifactId>java-hwp</artifactId>
+	<version>0.1</version>
 
 	<properties>
 		<project.source.encoding>UTF-8</project.source.encoding>
